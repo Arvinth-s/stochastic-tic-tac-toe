@@ -3,6 +3,7 @@
 import numpy as np
 import random
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 class Game(object):
     def __init__(self, m, n, params=None):
@@ -12,7 +13,6 @@ class Game(object):
         if(params and params.blocked):
             for cell in params.blocked:
                 self.board[cell[0], cell[1]] = -1
-        # self.stateSpaceSize = pow(4, self.m*self.n)
         state_hash_key = 10**5 + 7
         self.stateSpaceSize = state_hash_key
         self.actionSpaceSize = self.m * self.n
@@ -96,7 +96,7 @@ class Game(object):
         y = action[1] 
 
         if(x*self.n + y not in validPositions):
-            raise Exception("Not a valid action")
+            raise Exception(f"Not a valid action {x, y} validPositions {validPositions}")
 
         self.setState(x*self.n + y, player)
 
@@ -122,9 +122,8 @@ class Game(object):
 
     def randomSelection(self):
         k = self.rollDice()
-        print(f'dice output: {k}')
+        # print(f'dice output: {k}')
         validSquares = self.freeKquares(k)
-        # print(validSquares)
         return validSquares
 
     def render(self, validSquares):
@@ -161,7 +160,7 @@ def hashState(grid, hashkey = 10**5):
 
 
 def maxAction(Q, grid, possibleActions, m, n, player = 2):
-    max_action = 0
+    max_action = possibleActions[0]
     for action in possibleActions:
 
         x = int (action // n)
@@ -197,7 +196,10 @@ if __name__ == "__main__":
             Q[state, action] = 0
 
     numGames = 50000
+    num_wins = 0
+    num_draws = 0
     totalRewards = np.zeros(numGames)
+    wins = []
     for game_no in tqdm(range(numGames)):
         turn = 2
         done = 0
@@ -206,7 +208,7 @@ if __name__ == "__main__":
 
         while(done==0):
             turn = turn % 2 + 1
-            print(f'Player {turn} turn')
+            # print(f'Player {turn} turn')
             # choice = int(input("[1]: normal mode [2]: neutral mode \n"))
             choice = 1
             # while(choice not in [1, 2]):
@@ -214,7 +216,7 @@ if __name__ == "__main__":
             #     choice = int(input("[1]: normal mode [2]: neutral mode \n"))
 
             validSquares = game.randomSelection()
-            game.render(validSquares)
+            # game.render(validSquares)
             if(choice == 2):
                 index = int( input("Select index of valid square: ") )
                 x = int(index / n)
@@ -228,17 +230,21 @@ if __name__ == "__main__":
                         print(f'Player {done} wins!')
             else:
                 if(turn % 2 == 1):
-                    index = int( input("Select index of valid square: ") )
-                    x = int(index / n)
-                    y = index%n
-                    state, reward, done, _ = game.step([x, y], turn, validSquares)
+                    # action = int( input("Select index of valid square: ") )
+                    action = game.actionSpaceSample(validSquares)
+                    state, reward, done, _ = game.step([int(action/n), action%n], turn, validSquares)
                     if(done > 0):
-                        game.render(validSquares)
+                        # game.render(validSquares)
                         if(done == 3):
-                            print(f'Match draw!')
+                            # print(f'Match draw!')
+                            None
                         else:
-                            print(f'Player {done} wins!')
-                        print('\n\n\n')
+                            # print(f'Player {done} wins!')
+                            None
+                        if(done==2):
+                            num_wins+=1
+                        num_draws += (done==3)
+                        # print('\n\n\n')
                 else:
                     rand = np.random.random()
                     action = maxAction(Q, state, validSquares, m, n) if rand < (1-EPS) \
@@ -246,24 +252,43 @@ if __name__ == "__main__":
                     state_, reward, done, info = game.step([int(action/n), action%n], turn, validSquares)
                     epRewards += reward
 
-                    action_ = maxAction(Q, state_, validSquares, m, n)
+                    try:
+                        action_ = maxAction(Q, state_, validSquares, m, n)
 
-                    state_hash = hashState(state)
-                    Q[state_hash,action] = Q[state_hash,action] + ALPHA*(reward + \
-                                GAMMA*Q[state_hash,action_] - Q[state_hash,action])
-                    state = state_
+                        state_hash = hashState(state)
+                        state_hash_ = hashState(state_)
+                        Q[state_hash,action] = Q[state_hash,action] + ALPHA*(reward + \
+                                    GAMMA*Q[state_hash_, action_] - Q[state_hash, action])
+                        state = state_
+                    except:
+                        state_hash = hashState(state)
+                        Q[state_hash,action] = Q[state_hash, action] + ALPHA*(reward + \
+                                    GAMMA*  0 - Q[state_hash, action])
 
                     if(done > 0):
-                        game.render(validSquares)
+                        # game.render(validSquares)
                         if(done == 3):
-                            print(f'Match draw!')
+                            # print(f'Match draw!')
+                            None
                         else:
-                            print(f'Player {done} wins!')
-                        print('\n\n\n')
+                            # print(f'Player {done} wins!')
+                            None
+                        num_wins += (done==2)
+                        num_draws += (done==3)
+                        # print('\n\n\n')
+        if(game_no % 500 == 0):
+            wins.append(num_wins)
+            # print(f'game number {game_no}  win rate {float(num_wins +1) // float(game_no + 1)} wins {num_wins} draws {num_draws}')
 
-            if EPS - 2 / numGames > 0:
-                EPS -= 2 / numGames
-            else:
-                EPS = 0
-            totalRewards[game_no] = epRewards
+        if EPS - 2 / numGames > 0:
+            EPS -= 2 / numGames
+        else:
+            EPS = 0
+        totalRewards[game_no] = epRewards
+print(wins)
+plt.plot(range(len(wins)), wins)
+plt.show()
+
+plt.scatter(range(len(totalRewards)), totalRewards)
+plt.show()
         
