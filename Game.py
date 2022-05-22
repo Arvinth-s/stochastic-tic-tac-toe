@@ -2,6 +2,7 @@
 
 import numpy as np
 import random
+from tqdm import tqdm
 
 class Game(object):
     def __init__(self, m, n, params=None):
@@ -11,7 +12,12 @@ class Game(object):
         if(params and params.blocked):
             for cell in params.blocked:
                 self.board[cell[0], cell[1]] = -1
-    
+        # self.stateSpaceSize = pow(4, self.m*self.n)
+        state_hash_key = 10**5 + 7
+        self.stateSpaceSize = state_hash_key
+        self.actionSpaceSize = self.m * self.n
+
+
     def isTerminalState(self):
         for i in range(self.m):
             row = self.board[i, :].tolist()
@@ -100,8 +106,8 @@ class Game(object):
             raise Exception("Player can't be greater than 3.")
 
         if(player == 3):
-            x = int (action[2] // self.n )
-            y = action[3] % self.n
+            x = action[2]
+            y = action[3]
             if(x*self.n + y not in validPositions):
                 raise Exception("Not a valid action")
 
@@ -136,47 +142,128 @@ class Game(object):
             print('\n')
         print('------------------------------------------')
         return
+    def actionSpaceSample(self, validActions):
+        action = random.choice(validActions)
+        return action
     
     def reset(self):
-        self.board = np.zeros((self.m, self.n))
+        self.board = np.zeros((self.m, self.n), dtype=np.int8)
+        return self.board
+    
+
+def hashState(grid, hashkey = 10**5):
+    m, n = grid.shape
+    idx = 0
+    for i in range(m):
+        for j in range(n):
+            idx = ( idx * 4 + grid[i][j]) % hashkey
+    return idx
+
+
+def maxAction(Q, grid, possibleActions, m, n, player = 2):
+    max_action = 0
+    for action in possibleActions:
+
+        x = int (action // n)
+        y = int (action % n)
+        buf = grid[x][y]
+        if(grid[x][y] != 0):
+            raise Exception(f"Invalid square {x}, {y}")
+        grid[x][y] = player
+        state_ = hashState(grid)
+        grid[x][y] = buf
+        if(Q[state_, action] > Q[state_, max_action]):
+            max_action = action
+    return  max_action
 
 
 if __name__ == "__main__":
     done = 0
-    turn = 2
-    m = 2
-    n = 2
-    game = Game(m, n)
-    while(done==0):
-        turn = turn % 2 + 1
-        print(f'Player {turn} turn')
-        choice = int(input("[1]: normal mode [2]: neutral mode \n"))
-        while(choice not in [1, 2]):
-            print("invalid choice")
-            choice = int(input("[1]: normal mode [2]: neutral mode \n"))
-
-        validSquares = game.randomSelection()
-        game.render(validSquares)
-        if(choice == 2):
-            index = int( input("Select index of valid square: ") )
-            x = int(index / n)
-            y = index%n
-            state, reward, done, _ = game.step([x, y], turn, validSquares)
-            game.render(validSquares)
-            if(done>0):
-                if(done==3):
-                    print(f'Match draw!')
-                else:
-                    print(f'Player {done} wins!')
-        else:
-            index = int( input("Select index of valid square: ") )
-            x = int(index / n)
-            y = index%n
-            state, reward, done, _ = game.step([x, y], turn, validSquares)
-            game.render(validSquares)
-            if(done > 0):
-                if(done == 3):
-                    print(f'Match draw!')
-                else:
-                    print(f'Player {done} wins!')
     
+    m = 3
+    n = 3
+
+    ALPHA = 0.1
+    GAMMA = 1.0
+    EPS = 1.0
+
+    
+
+    game = Game(m, n)
+
+    Q = {}
+    for state in range(game.stateSpaceSize):
+        for action in range(game.actionSpaceSize):
+            Q[state, action] = 0
+
+    numGames = 50000
+    totalRewards = np.zeros(numGames)
+    for game_no in tqdm(range(numGames)):
+        turn = 2
+        done = 0
+        epRewards = 0
+        state = game.reset()
+
+        while(done==0):
+            turn = turn % 2 + 1
+            print(f'Player {turn} turn')
+            # choice = int(input("[1]: normal mode [2]: neutral mode \n"))
+            choice = 1
+            # while(choice not in [1, 2]):
+            #     print("invalid choice")
+            #     choice = int(input("[1]: normal mode [2]: neutral mode \n"))
+
+            validSquares = game.randomSelection()
+            game.render(validSquares)
+            if(choice == 2):
+                index = int( input("Select index of valid square: ") )
+                x = int(index / n)
+                y = index%n
+                state, reward, done, _ = game.step([x, y], turn, validSquares)
+                # game.render(validSquares)
+                if(done>0):
+                    if(done==3):
+                        print(f'Match draw!')
+                    else:
+                        print(f'Player {done} wins!')
+            else:
+                if(turn % 2 == 1):
+                    index = int( input("Select index of valid square: ") )
+                    x = int(index / n)
+                    y = index%n
+                    state, reward, done, _ = game.step([x, y], turn, validSquares)
+                    if(done > 0):
+                        game.render(validSquares)
+                        if(done == 3):
+                            print(f'Match draw!')
+                        else:
+                            print(f'Player {done} wins!')
+                        print('\n\n\n')
+                else:
+                    rand = np.random.random()
+                    action = maxAction(Q, state, validSquares, m, n) if rand < (1-EPS) \
+                                                            else game.actionSpaceSample(validSquares)
+                    state_, reward, done, info = game.step([int(action/n), action%n], turn, validSquares)
+                    epRewards += reward
+
+                    action_ = maxAction(Q, state_, validSquares, m, n)
+
+                    state_hash = hashState(state)
+                    Q[state_hash,action] = Q[state_hash,action] + ALPHA*(reward + \
+                                GAMMA*Q[state_hash,action_] - Q[state_hash,action])
+                    state = state_
+
+                    if(done > 0):
+                        game.render(validSquares)
+                        if(done == 3):
+                            print(f'Match draw!')
+                        else:
+                            print(f'Player {done} wins!')
+                        print('\n\n\n')
+
+            if EPS - 2 / numGames > 0:
+                EPS -= 2 / numGames
+            else:
+                EPS = 0
+            totalRewards[game_no] = epRewards
+        
