@@ -15,30 +15,40 @@ class Game(object):
     def isTerminalState(self):
         for i in range(self.m):
             row = self.board[i, :].tolist()
-            if(row.count(1) + row.count(-1) == self.n or row.count(2) + row.count(-1) == self.n):
-                return True
+            if(row.count(1) + row.count(-1) == self.n ):
+                return 1
+            if(row.count(2) + row.count(-1) == self.n):
+                return 2
         for j in range(self.n):
             col = self.board[:, j].tolist()
-            if(col.count(1) + col.count(-1) == self.m or col.count(2) + col.count(-1) == self.m):
-                return True
+            if(col.count(1) + col.count(-1) == self.m):
+                return 1 
+            if(col.count(2) + col.count(-1) == self.m):
+                return 2
         diagn = min(self.m, self.n)
         diag = [self.board[i][i] for i in range(diagn)]
 
-        if(diag.count(1) + diag.count(-1) == diagn or diag.count(2) + diag.count(-1) == diagn):
-            return True
+        if(diag.count(1) + diag.count(-1) == diagn):
+            return 1
+        if(diag.count(2) + diag.count(-1) == diagn):
+            return 2
 
         diag = [self.board[diagn-1-i][i] for i in range(diagn)]
-        if(diag.count(1) + diag.count(-1) == diagn or diag.count(2) + diag.count(-1) == diagn):
-            return True
+        if(diag.count(1) + diag.count(-1) == diagn):
+            return 1
+        if(diag.count(2) + diag.count(-1) == diagn):
+            return 2
+    
         draw = True
         for row in self.board:
             for ele in row:
                 if(ele == 0):
                     draw = False
                     break
+        if(draw): return 3
 
 
-        return draw
+        return 0
     
     def isDraw(self):
         for row in self.board:
@@ -132,23 +142,41 @@ class Game(object):
 
 
 if __name__ == "__main__":
-    done = False
+    done = 0
     turn = 2
     m = 2
     n = 2
     game = Game(m, n)
-    while(not done):
+    while(done==0):
         turn = turn % 2 + 1
         print(f'Player {turn} turn')
+        choice = int(input("[1]: normal mode [2]: neutral mode \n"))
+        while(choice not in [1, 2]):
+            print("invalid choice")
+            choice = int(input("[1]: normal mode [2]: neutral mode \n"))
+
         validSquares = game.randomSelection()
         game.render(validSquares)
-        index = int( input("Select index of valid square: ") )
-        x = int(index / n)
-        y = index%n
-        state, reward, done, _ = game.step([x, y], turn, validSquares)
-        if(done):
-            if(game.isDraw()):
-                print(f'Match draw!')
-            else:
-                print(f'Player {turn} wins!')
+        if(choice == 2):
+            index = int( input("Select index of valid square: ") )
+            x = int(index / n)
+            y = index%n
+            state, reward, done, _ = game.step([x, y], turn, validSquares)
+            game.render(validSquares)
+            if(done>0):
+                if(done==3):
+                    print(f'Match draw!')
+                else:
+                    print(f'Player {done} wins!')
+        else:
+            index = int( input("Select index of valid square: ") )
+            x = int(index / n)
+            y = index%n
+            state, reward, done, _ = game.step([x, y], turn, validSquares)
+            game.render(validSquares)
+            if(done > 0):
+                if(done == 3):
+                    print(f'Match draw!')
+                else:
+                    print(f'Player {done} wins!')
     
