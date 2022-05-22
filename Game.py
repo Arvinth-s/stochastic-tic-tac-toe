@@ -1,0 +1,154 @@
+# OM NAMO NARAYANA
+
+import numpy as np
+import random
+
+class Game(object):
+    def __init__(self, m, n, params=None):
+        self.board = np.zeros((m, n), dtype=np.int8)
+        self.m = m
+        self.n = n
+        if(params and params.blocked):
+            for cell in params.blocked:
+                self.board[cell[0], cell[1]] = -1
+    
+    def isTerminalState(self):
+        for i in range(self.m):
+            row = self.board[i, :].tolist()
+            if(row.count(1) + row.count(-1) == self.n or row.count(2) + row.count(-1) == self.n):
+                return True
+        for j in range(self.n):
+            col = self.board[:, j].tolist()
+            if(col.count(1) + col.count(-1) == self.m or col.count(2) + col.count(-1) == self.m):
+                return True
+        diagn = min(self.m, self.n)
+        diag = [self.board[i][i] for i in range(diagn)]
+
+        if(diag.count(1) + diag.count(-1) == diagn or diag.count(2) + diag.count(-1) == diagn):
+            return True
+
+        diag = [self.board[diagn-1-i][i] for i in range(diagn)]
+        if(diag.count(1) + diag.count(-1) == diagn or diag.count(2) + diag.count(-1) == diagn):
+            return True
+        draw = True
+        for row in self.board:
+            for ele in row:
+                if(ele == 0):
+                    draw = False
+                    break
+
+
+        return draw
+    
+    def isDraw(self):
+        for row in self.board:
+            for ele in row:
+                if(ele == 0):
+                    return False
+        return True
+    
+    def freeKquares(self, k=-1):
+        indices = []
+        if(k==-1):k = self.m * self.n
+        for i in range(self.m):
+            for j in range(self.n):
+                if(self.board[i][j] == 0):
+                    indices.append(i*self.n+j)
+        random.shuffle(indices)
+        return indices[:k]
+            
+    def setState(self, state, player=1):
+        x = int (state // self.n )
+        y = state % self.n
+
+        assert(state < self.m * self.n and state >= 0)
+
+        if(self.board[x][y] != 0):
+            raise Exception("The box is already taken")
+        
+        self.board[x][y] = player
+        return 
+    
+    def validSquare(self, action):
+        if(action < 0 or action >= self.m * self.n):
+            return False
+        return True
+    
+    def step(self, action, player, validPositions):
+        
+        x = action[0]
+        y = action[1] 
+
+        if(x*self.n + y not in validPositions):
+            raise Exception("Not a valid action")
+
+        self.setState(x*self.n + y, player)
+
+        validPositions.remove(x*self.n + y)
+
+        if(player > 3):
+            raise Exception("Player can't be greater than 3.")
+
+        if(player == 3):
+            x = int (action[2] // self.n )
+            y = action[3] % self.n
+            if(x*self.n + y not in validPositions):
+                raise Exception("Not a valid action")
+
+            self.setState(x*self.n + y, player)
+        
+        reward = -1 if not self.isTerminalState() else 0
+
+        return self.board, reward, self.isTerminalState(), None
+    
+    def rollDice(self):
+        return random.randint(1, 7)
+
+    def randomSelection(self):
+        k = self.rollDice()
+        print(f'dice output: {k}')
+        validSquares = self.freeKquares(k)
+        # print(validSquares)
+        return validSquares
+
+    def render(self, validSquares):
+        print('------------------------------------------')
+        items = ['-', 'X', 'O', 'T']
+        for i in range(self.m):
+            for j in range(self.n):
+                ele = self.board[i][j]
+                if(ele > 3):
+                    raise Exception("Player index can't be greater than 3")
+                if(i*self.m + j in validSquares):
+                    print(f'{i*self.m+j}', end='\t')
+                else:
+                    print(items[ele], end='\t')
+            print('\n')
+        print('------------------------------------------')
+        return
+    
+    def reset(self):
+        self.board = np.zeros((self.m, self.n))
+
+
+if __name__ == "__main__":
+    done = False
+    turn = 2
+    m = 2
+    n = 2
+    game = Game(m, n)
+    while(not done):
+        turn = turn % 2 + 1
+        print(f'Player {turn} turn')
+        validSquares = game.randomSelection()
+        game.render(validSquares)
+        index = int( input("Select index of valid square: ") )
+        x = int(index / n)
+        y = index%n
+        state, reward, done, _ = game.step([x, y], turn, validSquares)
+        if(done):
+            if(game.isDraw()):
+                print(f'Match draw!')
+            else:
+                print(f'Player {turn} wins!')
+    
