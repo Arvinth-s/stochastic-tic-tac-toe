@@ -105,7 +105,7 @@ class Game(object):
 
             self.setState(x*self.n + y, player)
         
-        reward = -1 if not self.isTerminalState() else 0
+        reward = -1 if not self.isTerminalState() else 1
 
         return self.board, reward, self.isTerminalState(), None
     
@@ -115,7 +115,7 @@ class Game(object):
     def randomSelection(self):
         k = self.rollDice()
         # print(f'dice output: {k}')
-        validSquares = self.freeKquares(k)
+        validSquares = self.freeKquares()
         return validSquares
 
     def render(self, validSquares):

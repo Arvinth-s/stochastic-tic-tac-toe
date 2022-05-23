@@ -24,7 +24,7 @@ class Agent(object):
 
         for i in range(self.actionSpaceSize):
             for j in range(self.stateSpaceSize):
-                self.Q[i, j] = 0
+                self.Q[i, j] = 1
 
 
         self.rewards = []

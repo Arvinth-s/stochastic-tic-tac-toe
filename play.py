@@ -37,54 +37,64 @@ if __name__ == "__main__":
     game = Game.Game(m, n)
 
         
-    numGames = 50000
+    numGames = 5000
     num_wins = [0, 0, 0]
     totalRewards = np.zeros(numGames)
     wins = []
+    steps = []
 
     agent_bot = Agent.Agent(alpha, gamma, eps, 0.01, m, n)
-
 
     for game_no in tqdm(range(numGames)):
         turn = 2
         done = 0
         epRewards = 0
         state = copy.deepcopy(game.reset())
-
+        step = 0
         while(done==0):
+            step += 1
             turn = turn % 2 + 1
             validActions = game.randomSelection()
             # game.render(validActions)
             
             if(turn % 2 == 1):
-                # action = int( input("Select index of valid square: ") )
-                action = game.actionSpaceSample(validActions)
-                state, reward, done, _ = game.step([int(action/n), action%n], turn, validActions)
-                state = copy.deepcopy(state)
-                if(done > 0):
-                    num_wins[done-1] += 1
+                # '''action = int( input("Select index of valid square: ") )'''
+                # action = game.actionSpaceSample(validActions)
+                # state, reward, done, _ = game.step([int(action/n), action%n], turn, validActions)
+                # state = copy.deepcopy(state)
+                # if(done > 0): break
+                None
 
             else:
                 action = agent_bot.getAction(state, validActions)
             
                 new_state, reward, done, info = game.step([int(action/n), action%n], turn, validActions)
+                if(done > 0): break
+                
                 new_state = copy.deepcopy(new_state)
                 epRewards += reward
 
                 agent_bot.update(state, new_state, action, reward)
                 state = copy.deepcopy(new_state)
 
-
-                if(done > 0):
-                    num_wins[done-1] += 1
-                
-        if(game_no % 500 == 0):
-            wins.append(num_wins[1])
+        if(done == 1): reward = -1 
+        elif(done == 2): reward = 1
+        agent_bot.update(state, None, action, reward)
+        epRewards += reward
+        num_wins[done-1] += 1
+        if(game_no % 500 == 0): wins.append(num_wins[1])
 
         totalRewards[game_no] = epRewards
-print(wins)
-plt.plot(range(len(wins)), wins)
-plt.show()
+        steps.append(step)
 
-plt.scatter(range(len(totalRewards)), totalRewards)
+fig, axs = plt.subplots(2, 2)
+axs[0, 0].plot(range(len(wins)), wins)
+axs[0, 0].set_title('Wins')
+axs[0, 1].scatter(range(len(totalRewards)), totalRewards)
+axs[0, 1].set_title('Rewards')
+axs[1, 1].scatter(range(len(steps)), steps)
+axs[1, 1].set_title('Steps')
+# axs[1, 1].plot(x, -y, 'tab:red')
+# axs[1, 1].set_title('Axis [1, 1]')
+
 plt.show()
