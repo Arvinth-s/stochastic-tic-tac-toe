@@ -21,10 +21,11 @@ class Agent(object):
         self.hashkey = 10**5
         self.stateSpaceSize = self.hashkey 
         self.actionSpaceSize = m * n
+        self.unique_states = []
 
         for i in range(self.actionSpaceSize):
             for j in range(self.stateSpaceSize):
-                self.Q[i, j] = 1
+                self.Q[i, j] = 0
 
 
         self.rewards = []
@@ -68,7 +69,18 @@ class Agent(object):
 
             Q_options = [self.Q[a, new_state_hash] for a in possible_actions]
 
+            for a in possible_actions:
+                if(self.Q[a, new_state_hash] > 0.75):
+                    print('Q value greater than 0.75 action {:d} '.format(a))
+                    print('state', new_state, '\n')
+
+            if(state_hash not in self.unique_states):
+                self.unique_states.append(state_hash)
+            # if(self.alpha*(reward + self.gamma*max(Q_options) - self.Q[action, state_hash]) > 0.02):
+            #     print(self.alpha*(reward + self.gamma*max(Q_options) - self.Q[action, state_hash]))
+            #     print("max {:.2f} min {:.2f} state {:d} correction factor{:.2f}".format(max(Q_options), min(Q_options), state_hash, self.alpha*(reward + self.gamma*max(Q_options) - self.Q[action, state_hash])))
             self.Q[action, state_hash] += self.alpha*(reward + self.gamma*max(Q_options) - self.Q[action, state_hash])
+
         else:
             self.Q[action, state_hash] += self.alpha*(reward - self.Q[action, state_hash])
 

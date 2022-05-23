@@ -28,22 +28,22 @@ if __name__ == "__main__":
     m = 3
     n = 3
 
-    alpha = 0.1
+    alpha = 0.5
     gamma = 1.0
-    eps = 1.0
-
+    eps = 0.3
+    eps_decay = 0.0
     
 
     game = Game.Game(m, n)
 
         
-    numGames = 5000
+    numGames = 2000
     num_wins = [0, 0, 0]
     totalRewards = np.zeros(numGames)
     wins = []
     steps = []
 
-    agent_bot = Agent.Agent(alpha, gamma, eps, 0.01, m, n)
+    agent_bot = Agent.Agent(alpha, gamma, eps, eps_decay, m, n)
 
     for game_no in tqdm(range(numGames)):
         turn = 2
@@ -77,7 +77,9 @@ if __name__ == "__main__":
                 agent_bot.update(state, new_state, action, reward)
                 state = copy.deepcopy(new_state)
 
-        if(done == 1): reward = -1 
+        if(done == 1): 
+            reward = -1 
+            print(f'player 1 wins!')
         elif(done == 2): reward = 1
         agent_bot.update(state, None, action, reward)
         epRewards += reward
@@ -87,12 +89,40 @@ if __name__ == "__main__":
         totalRewards[game_no] = epRewards
         steps.append(step)
 
+print('\n\n\n\n\n Interactive playground:')
+
+x = 'y'                         
+while(x != 'n'):
+    state = copy.deepcopy(game.reset())                    
+    done = 0
+    turn = 2
+    while(done==0):
+        step += 1
+        validActions = game.randomSelection()
+        game.render(validActions)
+        
+
+        action = int(input('select the required action (any of the numbers shown): '))
+    
+        new_state, reward, done, info = game.step([int(action/n), action%n], turn, validActions)
+        if(done > 0): break
+        
+        new_state = copy.deepcopy(new_state)
+        epRewards += reward
+
+        agent_bot.update(state, new_state, action, reward)
+        state = copy.deepcopy(new_state)
+
+        print('************************   q value: ', agent_bot.Q[action, Agent.hashState(grid=state)])
+    x = input('Want to continue? [y] yes [n] no')
+
+print(f'unique states visited {len(agent_bot.unique_states)}')
 fig, axs = plt.subplots(2, 2)
 axs[0, 0].plot(range(len(wins)), wins)
 axs[0, 0].set_title('Wins')
-axs[0, 1].scatter(range(len(totalRewards)), totalRewards)
+axs[0, 1].scatter(range(len(totalRewards)), totalRewards, s=0.1)
 axs[0, 1].set_title('Rewards')
-axs[1, 1].scatter(range(len(steps)), steps)
+axs[1, 1].scatter(range(len(steps)), steps, s=0.1)
 axs[1, 1].set_title('Steps')
 # axs[1, 1].plot(x, -y, 'tab:red')
 # axs[1, 1].set_title('Axis [1, 1]')
